@@ -2,15 +2,16 @@ let express = require('express');
 let bodyParser = require('body-parser');
 let morgan = require('morgan');
 let pg = require('pg')
+let env = require('dotenv').config()
 //let cors = require('cors');
 const PORT = 3000;
 
 let pool = new pg.Pool({
-    host: 'localhost',
-    port: 5432,
-    password: '',
-    database: 'simventory_db',
-    user: 'sheriffsaliu',
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000
@@ -146,6 +147,7 @@ app.post('/api/post-category', function (request, response) {
             db.query('INSERT INTO categories (category_name, category_status, category_active) VALUES($1, $2, $3)', [...values], (err, table) => {
                 done();
                 if (err) {
+                    console.log(err);
                     return response.status(400).send(err);
                 }
                 else {
@@ -202,23 +204,111 @@ app.get('/api/products', function (request, response) {
     })
 });
 
+app.get('/api/available-products-count', function (request, response) {
+    pool.connect(function (err, db, done) {
+        if (err) {
+            return response.status(400).send(err);
+        }
+        else {
+            let status = '1'
+            db.query('SELECT COUNT(*) FROM products WHERE product_status = $1' ,[status], function (err, table) {
+                done();
+                if (err) {
+                    return response.status(400).send(err);
+                }
+                else {
+                    console.log(JSON.stringify(table.rows));
+                    //db.end();
+                    response.status(200).send(table.rows);
+                }
+            })
+        }
+    })
+});
+
+app.get('/api/available-orders', function(request, response){
+    pool.connect(function (err, db, done) {
+        if (err) {
+            return response.status(400).send(err);
+        }
+        else {
+            let status = '1'
+            db.query('SELECT * FROM orders WHERE order_status = $1' ,[status], function (err, table) {
+                done();
+                if (err) {
+                    return response.status(400).send(err);
+                }
+                else {
+                    console.log(JSON.stringify(table.rows));
+                    //db.end();
+                    response.status(200).send(table.rows);
+                }
+            })
+        }
+    })
+});
+
+app.get('/api/available-orders-count', function (request, response) {
+    pool.connect(function (err, db, done) {
+        if (err) {
+            return response.status(400).send(err);
+        }
+        else {
+            let status = '1'
+            db.query('SELECT COUNT(*) FROM orders WHERE order_status = $1' ,[status], function (err, table) {
+                done();
+                if (err) {
+                    return response.status(400).send(err);
+                }
+                else {
+                    console.log(JSON.stringify(table.rows));
+                    //db.end();
+                    response.status(200).send(table.rows);
+                }
+            })
+        }
+    })
+});
+
+app.get('/api/low-stock-count', function (request, response) {
+    pool.connect(function (err, db, done) {
+        if (err) {
+            return response.status(400).send(err);
+        }
+        else {
+            let status = '1';
+            let quantity = 3;
+            db.query('SELECT COUNT(*) FROM products WHERE product_status = $1 AND quantity <= 3' ,[status], function (err, table) {
+                done();
+                if (err) {
+                    return response.status(400).send(err);
+                }
+                else {
+                    console.log(JSON.stringify(table.rows));
+                    //db.end();
+                    response.status(200).send(table.rows);
+                }
+            })
+        }
+    })
+});
 app.post('/api/post-product', function (request, response) {
     let values = [
-        request.body.product_name, 
-        request.body.product_image, 
+        request.body.product_name,
+        request.body.product_image,
+        request.body.product_status,
         request.body.brand_id,
         request.body.categories_id,
         request.body.quantity,
-        request.body.rate,
-        request.body.active,
-        request.body.product_status
+        request.body.price,
+        request.body.active
     ];
     pool.connect((err, db, done) => {
         if (err) {
             return response.status(400).send(err);
         }
         else {
-            db.query('INSERT INTO brands (product_name, product_image, brand_id,categories_id,quantity,rate,active,brand_id) VALUES($1, $2, $3, $4, $5, $6, $7, $8)', [...values], (err, table) => {
+            db.query('INSERT INTO products (product_name, product_image, product_status, brand_id, categories_id,quantity,price,active) VALUES($1, $2, $3, $4, $5, $6, $7, $8)', [...values], (err, table) => {
                 done();
                 if (err) {
                     return response.status(400).send(err);
@@ -275,5 +365,6 @@ app.get('/api/users', function (request, response) {
         }
     })
 });
+
 
 app.listen(PORT, () => console.log('Listening on port ' + PORT));
